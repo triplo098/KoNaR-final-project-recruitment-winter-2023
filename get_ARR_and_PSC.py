@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-TARGET_F = 13  # In Hz so 50.0 is 0.020 seconds period and 0.25 is 4 seconds period
+TARGET_F = 11  # In Hz so 50.0 is 0.020 seconds period and 0.25 is 4 seconds period
 CLOCK_MCU = 80000000
 TOLERANCE = 0.000001
 
