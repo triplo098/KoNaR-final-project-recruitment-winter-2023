@@ -25,6 +25,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "stdbool.h"
+#include "lsm6dsl_register_map.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,6 +44,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
@@ -59,6 +62,7 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_I2C1_Init(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
@@ -68,20 +72,36 @@ void StartDefaultTask(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-//static volatile bool transmitCompleteFlag = false;
-static volatile bool blinkFlag = false;
-static volatile bool buttonFlag = false;
-static volatile bool sensorFlag = false;
+static volatile bool blink_flag = false;
+static volatile bool button_flag = false;
+
+static volatile bool data_ready_flag = false;
+static volatile bool data_send_flag = false;
+
+
+#define LSM6DSL_I2C_ADDRESS (0b01101011<<1)
+
+static uint8_t sensor_buffer[64];
+
+void lsm6dsl_write_it(uint8_t address, uint8_t value) {
+	  HAL_I2C_Mem_Write_IT(&hi2c1, LSM6DSL_I2C_ADDRESS, address, 1, &value, 1);
+}
+
+void lsm6dsl_read_it(uint8_t address, uint8_t num) {
+	  HAL_I2C_Mem_Read_IT(&hi2c1, LSM6DSL_I2C_ADDRESS, address, 1, sensor_buffer, num);
+}
+
+
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 	if (htim == &htim2) {
 
-		blinkFlag = true;
+		blink_flag = true;
 
 	} else if (htim == &htim3) {
 
-		sensorFlag = true;
+		data_send_flag = true;
 
 	}
 
@@ -89,10 +109,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
-
 	if (GPIO_Pin == B1_Pin) {
 
-		buttonFlag = true;
+		button_flag = true;
+
+	} else if (GPIO_Pin == GPIO_PIN_10) {
+
+		data_ready_flag = true;
 
 	}
 }
@@ -110,9 +133,9 @@ void blink(void *param) {
 
 	while(1) {
 
-		if (blinkFlag == true) {
+		if (blink_flag == true) {
 
-			blinkFlag = false;
+			blink_flag = false;
 			HAL_GPIO_TogglePin(DIODE_GPIO_Port, DIODE_Pin);
 		}
 
@@ -126,9 +149,9 @@ void button(void *param) {
 
 	while (1) {
 
-		if (buttonFlag == true) {
+		if (button_flag == true) {
 
-			buttonFlag = false;
+			button_flag = false;
 			snprintf((char*) buffer, sizeof(buffer), "Button Pressed!\r\n");
 			HAL_UART_Transmit_IT(&huart2, (uint8_t*) buffer, strlen((char*)buffer));
 
@@ -138,15 +161,19 @@ void button(void *param) {
 
 void sensor(void *param) {
 
-	char buffer[64] = {0};
+	uint8_t who_i_am;
+//	HAL_I2C_Mem_Read_IT(&hi2c1, LSM6DSL_I2C_ADDRESS, LSM6DSL_WHO_AM_I, 1, &who_i_am, 1);
+//	lsm6dsl_read_it(LSM6DSL_I2C_ADDRESS, 1);
+
+
 
 	while (1) {
 
-		if (buttonFlag == true) {
+		if (data_ready_flag == true) {
 
 
-			//TO-DO
-//			buttonFlag = false;
+			//TODO
+//			button_flag = false;
 //			snprintf((char*) buffer, sizeof(buffer), "Button Pressed!\r\n");
 //			HAL_UART_Transmit_IT(&huart2, (uint8_t*) buffer, strlen((char*)buffer));
 
@@ -198,6 +225,7 @@ int main(void)
   MX_TIM2_Init();
   MX_USART2_UART_Init();
   MX_TIM3_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -237,9 +265,13 @@ int main(void)
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+
+
+
   xTaskCreate(blink, "blink", 512, NULL, 5, NULL);
   xTaskCreate(button, "button", 512, NULL, 5, NULL);
-
+  xTaskCreate(sensor, "button", 512, NULL, 5, NULL);
 
   while (1)
   {
@@ -297,6 +329,54 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.Timing = 0x10909CEC;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
@@ -463,6 +543,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(DIODE_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 5, 0);
