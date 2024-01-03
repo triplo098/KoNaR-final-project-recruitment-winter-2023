@@ -1,0 +1,6 @@
+*.ld
+*.launch
+.settings/
+.project
+.mxproject
+
