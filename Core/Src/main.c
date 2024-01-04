@@ -302,6 +302,11 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+
+  xTaskCreate(blink, "blink", 512, NULL, 5, NULL);
+  xTaskCreate(button, "button", 512, NULL, 5, NULL);
+  xTaskCreate(sensor, "sensor", 512, NULL, 5, NULL);
+
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -310,13 +315,6 @@ int main(void)
   /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-
-
-
-  xTaskCreate(blink, "blink", 512, NULL, 5, NULL);
-  xTaskCreate(button, "button", 512, NULL, 5, NULL);
-  xTaskCreate(sensor, "button", 512, NULL, 5, NULL);
 
   while (1)
   {
