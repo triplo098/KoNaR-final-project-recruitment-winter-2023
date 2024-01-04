@@ -188,6 +188,16 @@ void sensor(void *param) {
 
 	}
 
+	  lsm6dsl_write_it(LSM6DSL_CTRL3_C, (1 << 7) | (1) );
+	  lsm6dsl_write_it(LSM6DSL_CTRL1_XL, 1 << 3);
+	  lsm6dsl_write_it(LSM6DSL_INT1_CTRL, 1);
+
+
+	  //starti interupt reading
+		lsm6dsl_read_it(LSM6DSL_OUTX_L_XL, 2);
+
+
+
 	while (1) {
 
 		if (data_ready_flag == true && data_send_flag == true) {
@@ -195,20 +205,20 @@ void sensor(void *param) {
 			data_ready_flag = false;
 			data_send_flag = false;
 
-			lsm6dsl_read_it(LSM6DSL_MAG_OFFX_L, 2);
+			lsm6dsl_read_it(LSM6DSL_OUTX_L_XL, 2);
 
 
-			const uint16_t mag_offx = (((uint16_t)sensor_buffer[1]<<8)) | sensor_buffer[0];
+			const uint16_t acc_x = (((uint16_t)sensor_buffer[1]<<8)) | sensor_buffer[0];
 
 
 			//TODO find information about how to interpret magnetometr value
-			const float mag = mag_offx/1.0;
+			const float acc = acc_x/1.0;
 
 			//TODO
 //			button_flag = false
 //			snprintf((char*) buffer, sizeof(buffer), "Button Pressed!\r\n");
 //			HAL_UART_Transmit_IT(&huart2, (uint8_t*) buffer, strlen((char*)buffer));
-			sprintf(str, "Mag off X %+2.3f\n\r", mag);
+			sprintf(str, "Mag off X %+2.3f\n\r", acc);
 
 			HAL_UART_Transmit_IT(&huart2,  (uint8_t *) str, strlen(str));
 
