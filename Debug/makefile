@@ -65,7 +65,7 @@ main-build: KoNaR_final_project.elf secondary-outputs
 
 # Tool invocations
 KoNaR_final_project.elf KoNaR_final_project.map: $(OBJS) $(USER_OBJS) /home/piotr/Documents/Studia2023_24/KoNaR/KoNaR_final_project/STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "KoNaR_final_project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/piotr/Documents/Studia2023_24/KoNaR/KoNaR_final_project/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="KoNaR_final_project.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "KoNaR_final_project.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/piotr/Documents/Studia2023_24/KoNaR/KoNaR_final_project/STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="KoNaR_final_project.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

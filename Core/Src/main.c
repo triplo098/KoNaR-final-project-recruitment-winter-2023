@@ -91,6 +91,19 @@ void lsm6dsl_read_it(uint8_t address, uint8_t num) {
 	  HAL_I2C_Mem_Read_IT(&hi2c1, LSM6DSL_I2C_ADDRESS, address, 1, sensor_buffer, num);
 }
 
+void lsm6dsl_read(uint8_t address, uint8_t* dest,uint8_t num) {
+	  HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_I2C_ADDRESS, address, 1, dest, num, HAL_MAX_DELAY);
+}
+
+
+
+void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+	if(hi2c == &hi2c1) {
+		data_ready_flag = true;
+	}
+}
+
+
 
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
@@ -161,21 +174,43 @@ void button(void *param) {
 
 void sensor(void *param) {
 
+
+	char str[64] = {0};
+
 	uint8_t who_i_am;
 //	HAL_I2C_Mem_Read_IT(&hi2c1, LSM6DSL_I2C_ADDRESS, LSM6DSL_WHO_AM_I, 1, &who_i_am, 1);
 //	lsm6dsl_read_it(LSM6DSL_I2C_ADDRESS, 1);
+	lsm6dsl_read(LSM6DSL_WHO_AM_I, &who_i_am, 1);
 
+	if(who_i_am == 0b01101010) {
 
+		HAL_GPIO_TogglePin(DIODE_GPIO_Port, DIODE_Pin);
+
+	}
 
 	while (1) {
 
-		if (data_ready_flag == true) {
+		if (data_ready_flag == true && data_send_flag == true) {
 
+			data_ready_flag = false;
+			data_send_flag = false;
+
+			lsm6dsl_read_it(LSM6DSL_MAG_OFFX_L, 2);
+
+
+			const uint16_t mag_offx = (((uint16_t)sensor_buffer[1]<<8)) | sensor_buffer[0];
+
+
+			//TODO find information about how to interpret magnetometr value
+			const float mag = mag_offx/1.0;
 
 			//TODO
-//			button_flag = false;
+//			button_flag = false
 //			snprintf((char*) buffer, sizeof(buffer), "Button Pressed!\r\n");
 //			HAL_UART_Transmit_IT(&huart2, (uint8_t*) buffer, strlen((char*)buffer));
+			sprintf(str, "Mag off X %+2.3f\n\r", mag);
+
+			HAL_UART_Transmit_IT(&huart2,  (uint8_t *) str, strlen(str));
 
 		}
 	}

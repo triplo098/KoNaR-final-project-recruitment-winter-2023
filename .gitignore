@@ -1,6 +1,12 @@
-*.ld
-*.launch
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
 .settings/
-.project
-.mxproject
-.cproject
+.loadpath
+.recommenders
+**/Debug
