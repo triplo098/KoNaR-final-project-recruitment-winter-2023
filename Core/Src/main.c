@@ -26,6 +26,9 @@
 #include "stdio.h"
 #include "stdbool.h"
 #include "lsm6dsl_register_map.h"
+
+#include "queue.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,8 +81,9 @@ static volatile bool button_flag = false;
 static volatile bool data_ready_flag = false;
 static volatile bool data_send_flag = false;
 
+xQueueHandle queue = NULL;
 
-#define LSM6DSL_I2C_ADDRESS (0b01101011<<1)
+#define LSM6DSL_I2C_ADDRESS (0b01101011)
 
 static uint8_t sensor_buffer[64];
 
@@ -134,13 +138,25 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 }
 
 //
-//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 //{
 //	if (huart == &huart2) {
-//		transmitCompleteFlag = true;
+//		transimt_flag = true;
 //	}
-//
 //}
+
+void sender(void *param) {
+
+	while(1) {
+
+		char c;
+		if(xQueueReceive(queue, &c, 100)) {
+			HAL_UART_Transmit_IT(&huart2, (uint8_t * ) &c, 1);
+		}
+	}
+}
+
+
 
 void blink(void *param) {
 
@@ -157,16 +173,34 @@ void blink(void *param) {
 }
 
 void button(void *param) {
+//
+//	char buffer[64] = {0};
+//	snprintf((char*) buffer, sizeof(buffer), "Button Pressed!\r\n");
 
-	char buffer[64] = {0};
+
+
+	char buffer[64] = "Button Pressed!\r\n";
+
+//	char message[] = "Button Pressed!\r\n";
 
 	while (1) {
 
 		if (button_flag == true) {
 
 			button_flag = false;
-			snprintf((char*) buffer, sizeof(buffer), "Button Pressed!\r\n");
-			HAL_UART_Transmit_IT(&huart2, (uint8_t*) buffer, strlen((char*)buffer));
+//			HAL_UART_Transmit_IT(&huart2, (uint8_t*) buffer, strlen((char*)buffer));
+//			HAL_UART_Transmit_IT(&huart2, (uint8_t*) message, strlen(message));
+//			HAL_GPIO_TogglePin(DIODE_GPIO_Port, DIODE_Pin);
+
+			for (int i = 0; i < strlen((char*)buffer); i++) {
+				if (xQueueSend(queue, &buffer[i], 100)) {
+					//udało się
+				} else {
+					//nie udało się
+				}
+//				vTaskDelay(20);
+
+			}
 
 		}
 	}
@@ -180,6 +214,8 @@ void sensor(void *param) {
 	uint8_t who_i_am;
 //	HAL_I2C_Mem_Read_IT(&hi2c1, LSM6DSL_I2C_ADDRESS, LSM6DSL_WHO_AM_I, 1, &who_i_am, 1);
 //	lsm6dsl_read_it(LSM6DSL_I2C_ADDRESS, 1);
+	HAL_I2C_Mem_Read(&hi2c1, LSM6DSL_I2C_ADDRESS, LSM6DSL_WHO_AM_I, 1, &who_i_am, 1, HAL_MAX_DELAY);
+
 	lsm6dsl_read(LSM6DSL_WHO_AM_I, &who_i_am, 1);
 
 	if(who_i_am == 0b01101010) {
@@ -303,9 +339,15 @@ int main(void)
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
 
+
+  queue = xQueueCreate(1024, sizeof(char));
+
+
   xTaskCreate(blink, "blink", 512, NULL, 5, NULL);
   xTaskCreate(button, "button", 512, NULL, 5, NULL);
-  xTaskCreate(sensor, "sensor", 512, NULL, 5, NULL);
+
+  xTaskCreate(sender, "sender", 512, NULL, 5, NULL);
+//  xTaskCreate(sensor, "sensor", 512, NULL, 5, NULL);
 
   /* USER CODE END RTOS_THREADS */
 
@@ -441,9 +483,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 1108;
+  htim2.Init.Prescaler = 10394;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 5548;
+  htim2.Init.Period = 295;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
